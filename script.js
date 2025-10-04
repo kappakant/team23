@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Render cars
 function renderCars() {
   carsGrid.innerHTML = cars.map(car => `
-    <div class="bg-slate-900/50 backdrop-blur-lg rounded-2xl overflow-hidden border border-slate-800 hover:border-blue-500/50 transition-all duration-300 group hover:scale-105">
+    <div class="bg-slate-900/50 backdrop-blur-lg rounded-2xl overflow-hidden border border-slate-800 hover:border-orange-500/50 transition-all duration-300 group hover:scale-105">
       <div class="relative h-56 overflow-hidden">
         <img src="${car.image}" alt="${car.name}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
         <div class="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-sm px-3 py-1 rounded-full text-sm">
@@ -119,7 +119,7 @@ function renderCars() {
             </div>
           </div>
           <div class="text-right">
-            <div class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            <div class="text-3xl font-bold bg-gradient-to-r from-orange-400 to-red-500 bg-clip-text text-transparent">
               $${car.price}
             </div>
             <div class="text-sm text-slate-400">per day</div>
@@ -141,7 +141,7 @@ function renderCars() {
           </div>
         </div>
 
-        <button onclick="handleRentNow(${car.id})" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+        <button onclick="handleRentNow(${car.id})" class="w-full bg-gradient-to-r from-orange-500 to-red-600 py-3 rounded-lg font-semibold hover:opacity-90 transition">
           Rent Now
         </button>
       </div>
@@ -275,7 +275,7 @@ function openRentalModal() {
         </div>
       </div>
       <div class="text-right">
-        <div class="text-2xl font-bold text-blue-400">$${selectedCar.price}</div>
+        <div class="text-2xl font-bold text-orange-400">$${selectedCar.price}</div>
         <div class="text-sm text-slate-400">per day</div>
       </div>
     </div>
@@ -300,7 +300,7 @@ function openRentalModal() {
     <div class="border-t border-slate-700 pt-2 mt-2">
       <div class="flex justify-between items-center">
         <span class="text-lg font-semibold">Total</span>
-        <span class="text-2xl font-bold text-blue-400">$${total}</span>
+        <span class="text-2xl font-bold text-orange-400">$${total}</span>
       </div>
     </div>
   `;
