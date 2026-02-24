@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { auth } from './services/firebase';
+import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import Login from './pages/Login';
-import Home from './pages/Home';
-import Profile from './pages/Profile';  // Add this
+import Login from './Login';
+import Home from './Home';
+import Profile from './Profile';  // Add this
 
 function App() {
   const [user, setUser] = useState<any>(null);
