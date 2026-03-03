@@ -1,6 +1,4 @@
-
-
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +31,8 @@ interface MemoryItem {
   title: string;
   message: string;
 }
+
+const PROFILE_PHOTO_STORAGE_KEY = "pumppal.profilePhotoDataUrl";
 
 // ─── Empty defaults ───────────────────────────────────────────────────────────
 
@@ -155,16 +155,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ProfilePage() {
+export default function EditProfile() {
   const [profile, setProfile]         = useState<UserProfile>(EMPTY_PROFILE);
   const [errors, setErrors]           = useState<Record<string, string>>({});
   const [saved, setSaved]             = useState(false);
   const [memoriesOn, setMemoriesOn]   = useState(false);
   const [memories, setMemories]       = useState<MemoryItem[]>([]);
   const [noStats, setNoStats]         = useState(false);
+  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | null>(null);
   const [videoURL, setVideoURL]       = useState<string | null>(null);
+  const photoInputRef                 = useRef<HTMLInputElement>(null);
   const videoInputRef                 = useRef<HTMLInputElement>(null);
   const saveTimerRef                  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const storedPhoto = localStorage.getItem(PROFILE_PHOTO_STORAGE_KEY);
+    setProfilePhotoDataUrl(storedPhoto || null);
+  }, []);
+
+  useEffect(() => {
+    if (profilePhotoDataUrl) {
+      localStorage.setItem(PROFILE_PHOTO_STORAGE_KEY, profilePhotoDataUrl);
+    } else {
+      localStorage.removeItem(PROFILE_PHOTO_STORAGE_KEY);
+    }
+  }, [profilePhotoDataUrl]);
 
   // Generic top-level field setter
   const set = useCallback(<K extends keyof UserProfile>(key: K, val: UserProfile[K]) =>
@@ -197,6 +212,8 @@ export default function ProfilePage() {
     setMemories([]);
     setNoStats(false);
     setMemoriesOn(false);
+    setProfilePhotoDataUrl(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
     if (videoURL) URL.revokeObjectURL(videoURL);
     setVideoURL(null);
     if (videoInputRef.current) videoInputRef.current.value = "";
@@ -216,12 +233,39 @@ export default function ProfilePage() {
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
+  // Photo upload
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") setProfilePhotoDataUrl(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    setProfilePhotoDataUrl(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
   // Generate memory
   const handleGenerateMemory = () => {
     if (!hasStats(profile)) { setNoStats(true); return; }
     setNoStats(false);
     setMemories(prev => [generateMemory(profile), ...prev]);
   };
+
+  const avatarInitials = profile.name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase() ?? "")
+    .join("") || "NA";
 
   return (
     <div className="min-h-screen bg-black text-white px-4 py-10 flex flex-col items-center" style={{ fontFamily: "'Arial Black', 'Helvetica Neue', sans-serif", fontWeight: 800, letterSpacing: '-0.01em' }}>
@@ -235,6 +279,38 @@ export default function ProfilePage() {
 
         {/* ── Basic Info ─────────────────────────────────────────────────── */}
         <Section title="Basic Info">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden flex items-center justify-center text-2xl font-black text-white">
+              {profilePhotoDataUrl ? (
+                <img src={profilePhotoDataUrl} alt="Profile preview" className="w-full h-full object-cover" />
+              ) : (
+                avatarInitials
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 transition-colors cursor-pointer">
+                Upload Photo
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+              </label>
+              {profilePhotoDataUrl && (
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-zinc-800 border border-zinc-700 text-red-400 hover:bg-zinc-700 transition-colors"
+                >
+                  Remove Photo
+                </button>
+              )}
+            </div>
+          </div>
+
           <Field label="Name" value={profile.name}
             onChange={v => set("name", v)} placeholder="Your name" />
 
@@ -276,7 +352,36 @@ export default function ProfilePage() {
           <p className="text-xs text-zinc-600">Values in {profile.weightUnit}</p>
         </Section>
 
-        
+        {/* ── Cardio ─────────────────────────────────────────────────────── */}
+        <Section title="Cardio PRs">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Field
+                label="Treadmill Distance"
+                value={profile.cardio.treadmillDistance}
+                type="number"
+                onChange={v => setCardio("treadmillDistance", v)}
+                placeholder="3.2"
+                error={errors.treadmill}
+              />
+            </div>
+            <div>
+              <Field
+                label="StairMaster Flights"
+                value={profile.cardio.stairMasterFlights}
+                type="number"
+                onChange={v => setCardio("stairMasterFlights", v)}
+                placeholder="45"
+                error={errors.stairs}
+              />
+            </div>
+          </div>
+          <UnitToggle
+            options={["miles", "km"] as const}
+            value={profile.cardio.treadmillUnit}
+            onChange={v => setCardio("treadmillUnit", v)}
+          />
+        </Section>
 
         {/* ── Socials ────────────────────────────────────────────────────── */}
         <Section title="Socials">
@@ -326,13 +431,13 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-zinc-300">Enable memories</span>
             <button
-            type="button"
-            onClick={() => setMemoriesOn(v => !v)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
+              type="button"
+              onClick={() => setMemoriesOn(v => !v)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${
                 memoriesOn ? "bg-green-500" : "bg-zinc-600"
-            }`}
+              }`}
             >
-            <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow
+              <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow
                                 transition-transform ${memoriesOn ? "translate-x-5 bg-black" : "translate-x-0"}`} />
             </button>
           </div>
@@ -399,4 +504,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

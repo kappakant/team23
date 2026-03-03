@@ -1,6 +1,6 @@
 
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +36,8 @@ interface MockUser {
   prs: PRs;
   recentWorkouts: WorkoutLog[];
 }
+
+const PROFILE_PHOTO_STORAGE_KEY = "pumppal.profilePhotoDataUrl";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 // Replace this with real user data from your backend when ready.
@@ -127,6 +129,18 @@ export default function UserProfileView() {
   const user = MOCK_USER;
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPhoto = () => {
+      const storedPhoto = localStorage.getItem(PROFILE_PHOTO_STORAGE_KEY);
+      setProfilePhotoDataUrl(storedPhoto || null);
+    };
+
+    loadPhoto();
+    window.addEventListener("storage", loadPhoto);
+    return () => window.removeEventListener("storage", loadPhoto);
+  }, []);
 
   const handleFollow = () => {
     setIsFollowing(prev => {
@@ -148,8 +162,16 @@ export default function UserProfileView() {
 
           {/* Avatar */}
           <div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-zinc-700
-                          flex items-center justify-center text-2xl font-black text-white">
-            {user.avatarInitials}
+                          overflow-hidden flex items-center justify-center text-2xl font-black text-white">
+            {profilePhotoDataUrl ? (
+              <img
+                src={profilePhotoDataUrl}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              user.avatarInitials
+            )}
           </div>
 
           {/* Name + username */}
