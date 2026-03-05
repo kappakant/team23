@@ -4,7 +4,12 @@ import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import Login from './Login';
 import Home from './Home';
-import Profile from './Profile';  // Add this
+import Profile from './Profile';
+import LogWorkout from './LogWorkout';
+import GymProfile from './GymProfile';
+import ProfilePage from './ProfilePage';
+import UserProfileView from './UserProfileView';
+import NavBar from '../components/NavBar';
 
 function App() {
   const [user, setUser] = useState<any>(null);
@@ -36,6 +41,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <NavBar />
       <Routes>
         <Route 
           path="/login" 
@@ -48,6 +54,22 @@ function App() {
         <Route 
           path="/profile" 
           element={user ? <Profile /> : <Navigate to="/login" />}  // Add this
+        />
+        <Route
+          path="/log"
+          element={user ? <LogWorkout /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/gym"
+          element={user ? <GymProfile /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/profile-edit"
+          element={user ? <ProfilePage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/user"
+          element={user ? <UserProfileView /> : <Navigate to="/login" />}
         />
       </Routes>
     </BrowserRouter>
