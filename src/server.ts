@@ -1,4 +1,3 @@
-// src/server.ts
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST

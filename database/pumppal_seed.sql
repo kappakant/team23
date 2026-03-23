@@ -3,7 +3,6 @@
 -- Sample data for testing
 -- ============================================
 
-USE pumppal;
 
 -- Insert muscle groups
 INSERT INTO muscle_groups (name) VALUES
@@ -184,6 +183,3 @@ INSERT INTO points_history (user_id, points_change, reason, reference_type, refe
 ('test-uid-002', 250, 'Earned Silver Lifter badge', 'Badge', 2),
 ('test-uid-003', 2000, 'Became #1 at gym', 'Badge', 7);
 
--- Database setup complete!
-SELECT '✅ PumpPal database created successfully!' as Status;
-SELECT CONCAT('📊 Total tables: ', COUNT(*)) as Info FROM information_schema.tables WHERE table_schema = 'pumppal';

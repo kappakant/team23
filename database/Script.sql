@@ -1,3 +1,0 @@
-DROP DATABASE IF EXISTS pumppal;
-CREATE DATABASE pumppal;
-USE pumppal;
