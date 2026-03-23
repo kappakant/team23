@@ -40,3 +40,8 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Ensure page content doesn't get covered by the sticky nav */
+body, #root {
+  padding-bottom: 4rem;
+}

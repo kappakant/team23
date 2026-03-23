@@ -1,0 +1,10 @@
+/* Minimal global styles for the app */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: Inter, Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial;
+}
+
+a { color: inherit; }

@@ -69,6 +69,22 @@ function App() {
           path="/user-profile" 
           element={user ? <UserProfileView /> : <Navigate to="/login" />} 
         />
+        <Route
+          path="/log"
+          element={user ? <LogWorkout /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/gym"
+          element={user ? <GymProfile /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/profile-edit"
+          element={user ? <ProfilePage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/user"
+          element={user ? <UserProfileView /> : <Navigate to="/login" />}
+        />
       </Routes>
     </BrowserRouter>
   );
