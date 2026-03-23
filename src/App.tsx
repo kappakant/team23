@@ -9,6 +9,7 @@ import GymProfile from './pages/GymProfile';
 import LogWorkout from './pages/LogWorkout';
 import ProfilePage from './pages/ProfilePage';
 import UserProfileView from './pages/UserProfileView';
+import NavBar from './components/NavBar';
 
 function App() {
   const [user, setUser] = useState<any>(null);
@@ -40,6 +41,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      {user && <NavBar />}
       <Routes>
         <Route 
           path="/login" 
