@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { auth } from '../services/firebase';
+import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { getFeed, toggleLike, syncUserProfile } from '../services/api';
 import './Home.css';
@@ -42,13 +43,19 @@ function Home() {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   useEffect(() => {
     const loadFeed = async () => {
       try {
-        // Sync user profile first
         await syncUserProfile();
-        
-        // Fetch feed
         const feedData = await getFeed();
         setPosts(feedData);
       } catch (error) {
@@ -64,8 +71,6 @@ function Home() {
   const handleLike = async (postId: number) => {
     try {
       const result = await toggleLike(postId);
-      
-      // Update local state
       setPosts(posts.map(post => 
         post.id === postId 
           ? { 
@@ -120,6 +125,21 @@ function Home() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
+          </button>
+          {/* Temporary logout button for testing */}
+          <button 
+            onClick={handleLogout}
+            style={{
+              color: 'white',
+              background: 'none',
+              border: '1px solid white',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Logout
           </button>
         </div>
       </div>
@@ -195,7 +215,6 @@ function Home() {
 
               {/* Post Content */}
               <div className="post-content">
-                {/* Muscle Groups */}
                 {post.muscle_groups && (
                   <div className="post-muscles">
                     {post.muscle_groups.split(',').map((muscle, index) => (
@@ -203,14 +222,10 @@ function Home() {
                     ))}
                   </div>
                 )}
-
-                {/* Caption */}
                 <div className="post-caption">
                   <span className="username">{post.username}</span>
                   {post.caption}
                 </div>
-
-                {/* View Comments */}
                 {post.comments_count > 0 && (
                   <div className="view-comments">
                     View all {post.comments_count} comments
@@ -224,7 +239,7 @@ function Home() {
 
       {/* Bottom Navigation */}
       <div className="bottom-nav">
-        <div className="nav-item active">
+        <div className="nav-item active" onClick={() => navigate('/')}>
           <div className="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
@@ -235,7 +250,28 @@ function Home() {
           <div className="nav-dot"></div>
         </div>
 
-        <div className="nav-item">
+        <div className="nav-item" onClick={() => navigate('/log-workout')}>
+          <div className="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+          </div>
+          <span className="nav-label">Log</span>
+        </div>
+
+        <div className="nav-item" onClick={() => navigate('/gym-profile')}>
+          <div className="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <path d="M6 12h3M15 12h3M9 12v6M15 12v6"/>
+            </svg>
+          </div>
+          <span className="nav-label">Gym</span>
+        </div>
+
+        <div className="nav-item" onClick={() => navigate('/user-profile')}>
           <div className="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/>
@@ -243,17 +279,6 @@ function Home() {
             </svg>
           </div>
           <span className="nav-label">Search</span>
-        </div>
-
-        <div className="nav-item">
-          <div className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="12" y1="8" x2="12" y2="16"/>
-              <line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-          </div>
-          <span className="nav-label">Post</span>
         </div>
 
         <div className="nav-item" onClick={() => navigate('/profile')}>
