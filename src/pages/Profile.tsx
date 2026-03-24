@@ -1,9 +1,31 @@
+import { useState, useEffect } from 'react';
 import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { getUserProfile } from '../services/api';
 import './Profile.css';
 
+interface UserProfile {
+  firebase_uid: string;
+  username: string;
+  display_name: string;
+  email: string;
+  bio: string;
+  age: number;
+  height_inches: number;
+  weight_lbs: number;
+  lifter_type: string;
+  score: number;
+  current_streak_days: number;
+  primary_gym_name: string;
+  followers_count: number;
+  following_count: number;
+  badges_count: number;
+}
+
 function Profile() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
   const navigate = useNavigate();
 
@@ -16,14 +38,15 @@ function Profile() {
     });
   };
 
-  const getInitials = (email: string | null | undefined) => {
-    if (!email) return 'U';
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (username: string) => {
+    return username ? username.substring(0, 2).toUpperCase() : 'U';
   };
 
-  const getUsername = (email: string | null | undefined) => {
-    if (!email) return 'User';
-    return email.split('@')[0];
+  const formatHeight = (inches: number) => {
+    if (!inches) return '—';
+    const ft = Math.floor(inches / 12);
+    const inc = inches % 12;
+    return `${ft}'${inc}"`;
   };
 
   const handleLogout = async () => {
@@ -34,6 +57,41 @@ function Profile() {
       console.error('Error signing out:', error);
     }
   };
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+      try {
+        const data = await getUserProfile(user.uid);
+        setProfile(data);
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="profile-screen">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+          Loading Profile...
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="profile-screen">
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
+          Profile not found
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="profile-screen">
@@ -57,78 +115,67 @@ function Profile() {
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
         {/* Header */}
         <div className="profile-header-section">
-          <h1 className="profile-app-title">PUMP PAL</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px' }}>
+            <h1 className="profile-app-title">PUMP PAL</h1>
+            <button
+              onClick={handleLogout}
+              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px' }}
+            >
+              Logout
+            </button>
+          </div>
 
           {/* Profile Info Card */}
           <div className="profile-info-card">
             <div className="profile-top">
               <div className="profile-avatar-large">
                 <div className="profile-avatar-placeholder">
-                  {getInitials(user?.email)}
+                  {getInitials(profile.username)}
                 </div>
               </div>
 
               <div className="profile-basic-info">
-                <h2 className="profile-name">{getUsername(user?.email)}</h2>
+                <h2 className="profile-name">{profile.display_name || profile.username}</h2>
+                <div className="profile-username-tag">@{profile.username}</div>
                 <div className="profile-stats-inline">
-                  <span>25</span>
-                  <span>•</span>
-                  <span>6'2"</span>
-                  <span>•</span>
-                  <span>200 lbs</span>
+                  {profile.age && <span>{profile.age}</span>}
+                  {profile.age && profile.height_inches && <span>•</span>}
+                  {profile.height_inches && <span>{formatHeight(profile.height_inches)}</span>}
+                  {profile.height_inches && profile.weight_lbs && <span>•</span>}
+                  {profile.weight_lbs && <span>{profile.weight_lbs} lbs</span>}
                 </div>
-                <div className="profile-home-gym">Downtown.Gym</div>
-                <div className="profile-lifter-type">
-                  Type of Lifter: <span>Aesthetic</span>
-                </div>
+                {profile.primary_gym_name && (
+                  <div className="profile-home-gym">{profile.primary_gym_name}</div>
+                )}
+                {profile.lifter_type && (
+                  <div className="profile-lifter-type">
+                    Type of Lifter: <span>{profile.lifter_type}</span>
+                  </div>
+                )}
+                {profile.bio && (
+                  <div className="profile-bio">{profile.bio}</div>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* This Week's Lifts */}
-            <div className="weekly-lifts-section">
-              <h3 className="section-title">This Week's Lifts</h3>
-              <div className="lifts-grid">
-                <div className="lift-stat-card">
-                  <svg className="lift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="9" width="4" height="12" rx="1"/>
-                    <rect x="10" y="3" width="4" height="18" rx="1"/>
-                    <rect x="18" y="9" width="4" height="12" rx="1"/>
-                  </svg>
-                  <div className="lift-value">275</div>
-                  <div className="lift-unit">lb</div>
-                </div>
-
-                <div className="lift-stat-card">
-                  <svg className="lift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="3" y1="12" x2="21" y2="12"/>
-                    <circle cx="6" cy="12" r="3"/>
-                    <circle cx="18" cy="12" r="3"/>
-                  </svg>
-                  <div className="lift-value">450</div>
-                  <div className="lift-unit">lbs</div>
-                </div>
-
-                <div className="lift-stat-card">
-                  <svg className="lift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 7h-4V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v3H4"/>
-                    <rect x="2" y="7" width="20" height="14" rx="2"/>
-                    <path d="M8 11v4"/>
-                    <path d="M12 11v4"/>
-                    <path d="M16 11v4"/>
-                  </svg>
-                  <div className="lift-value">360</div>
-                  <div className="lift-unit">lbs</div>
-                </div>
-
-                <div className="lift-stat-card">
-                  <svg className="lift-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2v20"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-                  </svg>
-                  <div className="lift-value">2.0</div>
-                  <div className="lift-unit">mi</div>
-                </div>
-              </div>
+          {/* Stats */}
+          <div className="stats-card-profile">
+            <div className="stat-item-profile">
+              <div className="stat-label-profile">Score</div>
+              <div className="stat-value-profile">{profile.score?.toLocaleString() || 0}</div>
+            </div>
+            <div className="stat-item-profile">
+              <div className="stat-label-profile">Followers</div>
+              <div className="stat-value-profile">{profile.followers_count || 0}</div>
+            </div>
+            <div className="stat-item-profile">
+              <div className="stat-label-profile">Following</div>
+              <div className="stat-value-profile">{profile.following_count || 0}</div>
+            </div>
+            <div className="stat-item-profile">
+              <div className="stat-label-profile">Streak</div>
+              <div className="stat-value-profile">{profile.current_streak_days || 0}🔥</div>
             </div>
           </div>
 
@@ -142,7 +189,6 @@ function Profile() {
                 <div className="badge-name">Bronze Lifter PR</div>
               </div>
             </div>
-
             <div className="badge-card">
               <svg className="badge-icon diamond" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
@@ -153,65 +199,14 @@ function Profile() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="stats-card-profile">
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Score</div>
-              <div className="stat-value-profile">12,082</div>
-            </div>
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Followers</div>
-              <div className="stat-value-profile">345</div>
-            </div>
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Following</div>
-              <div className="stat-value-profile">450</div>
-            </div>
-          </div>
-
           {/* Gym Section */}
-          <div className="gym-section">
-            <div className="gym-header">
-              <h3 className="gym-name">DOWNTOWN GYM</h3>
-              <div className="gym-rating">
-                <span className="star">★</span>
-                <span className="star">★</span>
-                <span className="star">★</span>
-                <span className="star">★</span>
-                <span className="star">★</span>
-                <span>4.5</span>
+          {profile.primary_gym_name && (
+            <div className="gym-section">
+              <div className="gym-header">
+                <h3 className="gym-name">{profile.primary_gym_name.toUpperCase()}</h3>
               </div>
             </div>
-
-            <div className="mutual-friends-label">Mutual Friends</div>
-            <div className="mutual-friends-avatars">
-              <div className="mutual-avatar"></div>
-              <div className="mutual-avatar"></div>
-              <div className="mutual-avatar"></div>
-              <button className="see-more-btn">›</button>
-            </div>
-
-            <div className="gym-leader-section">
-              <div className="gym-leader-title">Current Gym Leader</div>
-              <div className="gym-leader-card">
-                <div className="leader-avatar"></div>
-                <div className="leader-stats">
-                  <div className="leader-stat">
-                    <span className="leader-stat-value">205</span>
-                    <span className="leader-stat-unit">lbs</span>
-                  </div>
-                  <div className="leader-stat">
-                    <span className="leader-stat-value">325</span>
-                    <span className="leader-stat-unit">lbs</span>
-                  </div>
-                  <div className="leader-stat">
-                    <span className="leader-stat-value">205</span>
-                    <span className="leader-stat-unit">lbs</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -225,16 +220,14 @@ function Profile() {
             </svg>
           </div>
         </div>
-
-        <div className="nav-item">
+        <div className="nav-item" onClick={() => navigate('/log-workout')}>
           <div className="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12h14"/>
             </svg>
           </div>
         </div>
-
-        <div className="nav-item">
+        <div className="nav-item" onClick={() => navigate('/gym-profile')}>
           <div className="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"/>
@@ -242,7 +235,6 @@ function Profile() {
             </svg>
           </div>
         </div>
-
         <div className="nav-item active">
           <div className="nav-icon">
             <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

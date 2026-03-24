@@ -8,6 +8,35 @@ const getCurrentUserId = () => {
   return auth.currentUser?.uid || null;
 };
 
+// Get any user's public profile by username
+export const getUserByUsername = async (username: string, viewer_id?: string) => {
+  try {
+    const url = viewer_id 
+      ? `${API_URL}/users/u/${username}?viewer_id=${viewer_id}`
+      : `${API_URL}/users/u/${username}`;
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+};
+
+// Follow or unfollow a user
+export const toggleFollow = async (follower_id: string, following_id: string) => {
+  try {
+    const response = await fetch(`${API_URL}/users/follow`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ follower_id, following_id })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error toggling follow:', error);
+    throw error;
+  }
+};
+
 // Create or sync user profile
 export const syncUserProfile = async () => {
   const user = auth.currentUser;

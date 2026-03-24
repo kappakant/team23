@@ -52,6 +52,15 @@ function Home() {
     }
   };
 
+  const handleProfileClick = (username: string) => {
+    // If it's the current user, go to their own profile page
+    if (user?.displayName === username || user?.email?.split('@')[0] === username) {
+      navigate('/profile');
+    } else {
+      navigate(`/user/${username}`);
+    }
+  };
+
   useEffect(() => {
     const loadFeed = async () => {
       try {
@@ -162,13 +171,23 @@ function Home() {
             <div key={post.id} className="post-card">
               {/* Post Header */}
               <div className="post-header">
-                <div className="post-avatar">
+                <div 
+                  className="post-avatar"
+                  onClick={() => handleProfileClick(post.username)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <span className="post-avatar-initials">
                     {post.username.substring(0, 2).toUpperCase()}
                   </span>
                 </div>
                 <div className="post-user-info">
-                  <span className="post-username">{post.username}</span>
+                  <span 
+                    className="post-username"
+                    onClick={() => handleProfileClick(post.username)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {post.username}
+                  </span>
                   <span className="post-time">{getTimeAgo(post.created_at)}</span>
                 </div>
                 <button className="post-menu-btn">
@@ -223,8 +242,14 @@ function Home() {
                   </div>
                 )}
                 <div className="post-caption">
-                  <span className="username">{post.username}</span>
-                  {post.caption}
+                  <span 
+                    className="username"
+                    onClick={() => handleProfileClick(post.username)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {post.username}
+                  </span>
+                  {' '}{post.caption}
                 </div>
                 {post.comments_count > 0 && (
                   <div className="view-comments">

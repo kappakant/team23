@@ -1,247 +1,233 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { auth } from '../services/firebase';
+import { getUserByUsername, toggleFollow } from '../services/api';
+import './UserProfileView.css';
 
-
-import { useEffect, useState } from "react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface PRs {
-  bench: number;
-  squat: number;
-  deadlift: number;
+interface PR {
+  pr_type: string;
+  weight_lbs: number;
+  pr_date: string;
 }
 
-interface WorkoutExercise {
-  name: string;
-  sets: number;
-  reps: number;
-  weight: number; // lbs
+interface Post {
+  id: number;
+  caption: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  muscle_groups: string;
 }
 
-interface WorkoutLog {
-  id: string;
-  date: string;
-  title: string;
-  durationMinutes: number;
-  exercises: WorkoutExercise[];
-}
-
-interface MockUser {
-  name: string;
+interface UserProfile {
+  firebase_uid: string;
   username: string;
-  avatarInitials: string; // used as placeholder if no photo
-  favoriteGym: string;
-  followers: number;
-  following: number;
-  weightUnit: "lbs" | "kg";
-  prs: PRs;
-  recentWorkouts: WorkoutLog[];
+  display_name: string;
+  bio: string;
+  lifter_type: string;
+  score: number;
+  current_streak_days: number;
+  primary_gym_name: string;
+  followers_count: number;
+  following_count: number;
+  posts_count: number;
+  is_following: boolean;
+  prs: PR[];
+  posts: Post[];
 }
-
-const PROFILE_PHOTO_STORAGE_KEY = "pumppal.profilePhotoDataUrl";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-// Replace this with real user data from your backend when ready.
-
-const MOCK_USER: MockUser = {
-  name: "User Name",
-  username: "@User_username",
-  avatarInitials: "NA",
-  favoriteGym: "NA",
-  followers: 0,
-  following: 0,
-  weightUnit: "lbs",
-  prs: {
-    bench: 0,
-    squat: 0,
-    deadlift: 0,
-  },
-  recentWorkouts: [],
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatFollowers(n: number): string {
-  if (n >= 1000) return (n / 1000).toFixed(1).replace(".0", "") + "K";
-  return n.toString();
+  if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+  return n?.toString() || '0';
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-/** Single PR stat card */
-function PRCard({ label, value, unit }: { label: string; value: number; unit: string }) {
-  return (
-    <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center gap-1">
-      <span className="text-2xl font-black text-white">{value}</span>
-      <span className="text-xs text-zinc-400 uppercase tracking-widest">{unit}</span>
-      <span className="text-xs font-bold text-zinc-300 mt-1">{label}</span>
-    </div>
-  );
+function getTimeAgo(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
-
-/** Single workout log card */
-function WorkoutCard({ workout, unit }: { workout: WorkoutLog; unit: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3">
-      {/* Header row */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-black text-white text-sm">{workout.title}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">{workout.date}</p>
-        </div>
-        <div className="flex items-center gap-1 bg-zinc-800 rounded-lg px-3 py-1">
-          <span className="text-xs text-zinc-400">⏱</span>
-          <span className="text-xs font-bold text-zinc-300">{workout.durationMinutes}m</span>
-        </div>
-      </div>
-
-      {/* Exercise preview — always show first 2, expand for rest */}
-      <div className="flex flex-col gap-2">
-        {workout.exercises.slice(0, expanded ? workout.exercises.length : 2).map((ex, i) => (
-          <div key={i} className="flex items-center justify-between">
-            <span className="text-sm text-zinc-300">{ex.name}</span>
-            <span className="text-xs text-zinc-500">
-              {ex.sets}×{ex.reps}
-              {ex.weight > 0 ? ` @ ${ex.weight}${unit}` : " BW"}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Expand toggle if more than 2 exercises */}
-      {workout.exercises.length > 2 && (
-        <button
-          type="button"
-          onClick={() => setExpanded(v => !v)}
-          className="text-xs text-zinc-500 hover:text-white transition-colors self-start"
-        >
-          {expanded ? "Show less ↑" : `+${workout.exercises.length - 2} more exercises`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function UserProfileView() {
-  const user = MOCK_USER;
+  const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
+  const currentUser = auth.currentUser;
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
-  const [profilePhotoDataUrl, setProfilePhotoDataUrl] = useState<string | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
-    const loadPhoto = () => {
-      const storedPhoto = localStorage.getItem(PROFILE_PHOTO_STORAGE_KEY);
-      setProfilePhotoDataUrl(storedPhoto || null);
+    const loadProfile = async () => {
+      if (!username) return;
+      try {
+        const data = await getUserByUsername(username, currentUser?.uid);
+        if (data && !data.error) {
+          setProfile(data);
+          setIsFollowing(data.is_following);
+          setFollowerCount(data.followers_count);
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+    loadProfile();
+  }, [username]);
 
-    loadPhoto();
-    window.addEventListener("storage", loadPhoto);
-    return () => window.removeEventListener("storage", loadPhoto);
-  }, []);
-
-  const handleFollow = () => {
-    setIsFollowing(prev => {
-      const next = !prev;
-      setFollowerCount(c => next ? c + 1 : c - 1);
-      return next;
-    });
+  const handleFollow = async () => {
+    if (!currentUser || !profile || followLoading) return;
+    setFollowLoading(true);
+    try {
+      const result = await toggleFollow(currentUser.uid, profile.firebase_uid);
+      setIsFollowing(result.following);
+      setFollowerCount(c => result.following ? c + 1 : c - 1);
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
-  return (
-    <div
-      className="min-h-screen bg-black text-white px-4 py-10 flex flex-col items-center"
-      style={{ fontFamily: "'Arial Black', 'Helvetica Neue', sans-serif", fontWeight: 800, letterSpacing: "-0.01em" }}
-    >
-      <div className="w-full max-w-lg flex flex-col gap-6">
+  const getBestPR = (type: string) => {
+    if (!profile?.prs) return 0;
+    const filtered = profile.prs.filter(p => p.pr_type === type);
+    if (filtered.length === 0) return 0;
+    return Math.max(...filtered.map(p => p.weight_lbs));
+  };
 
-        {/* ── Header / Identity ─────────────────────────────────────────── */}
-        <div className="flex flex-col items-center gap-4 pt-4">
+  if (loading) {
+    return <div className="user-profile-loading">Loading...</div>;
+  }
 
-          {/* Avatar */}
-          <div className="w-24 h-24 rounded-full bg-zinc-800 border-2 border-zinc-700
-                          overflow-hidden flex items-center justify-center text-2xl font-black text-white">
-            {profilePhotoDataUrl ? (
-              <img
-                src={profilePhotoDataUrl}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              user.avatarInitials
-            )}
-          </div>
-
-          {/* Name + username */}
-          <div className="text-center">
-            <h1 className="text-2xl font-black text-white">{user.name}</h1>
-            <p className="text-sm text-zinc-500 font-normal mt-0.5">{user.username}</p>
-          </div>
-
-          {/* Follow button */}
-          <button
-            type="button"
-            onClick={handleFollow}
-            className={`px-8 py-2.5 rounded-xl text-sm font-black transition-all ${
-              isFollowing
-                ? "bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700"
-                : "bg-white text-black hover:bg-zinc-200"
-            }`}
-          >
-            {isFollowing ? "Following ✓" : "Follow"}
-          </button>
-
-          {/* Stats row: followers, following, gym */}
-          <div className="flex items-center justify-center gap-6 w-full
-                          bg-zinc-900 border border-zinc-800 rounded-2xl py-4 px-6">
-            <div className="flex flex-col items-center">
-              <span className="text-xl font-black text-white">{formatFollowers(followerCount)}</span>
-              <span className="text-xs text-zinc-500 uppercase tracking-widest font-normal">Followers</span>
-            </div>
-            <div className="w-px h-8 bg-zinc-700" />
-            <div className="flex flex-col items-center">
-              <span className="text-xl font-black text-white">{formatFollowers(user.following)}</span>
-              <span className="text-xs text-zinc-500 uppercase tracking-widest font-normal">Following</span>
-            </div>
-            <div className="w-px h-8 bg-zinc-700" />
-            <div className="flex flex-col items-center">
-              <span className="text-sm font-black text-white text-center leading-tight">{user.favoriteGym}</span>
-              <span className="text-xs text-zinc-500 uppercase tracking-widest font-normal">Gym</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── PR Dashboard ──────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-xs font-black uppercase tracking-widest text-white">
-            Top Lifts
-          </h2>
-          <div className="flex gap-3">
-            <PRCard label="Bench" value={user.prs.bench} unit={user.weightUnit} />
-            <PRCard label="Squat" value={user.prs.squat} unit={user.weightUnit} />
-            <PRCard label="Deadlift" value={user.prs.deadlift} unit={user.weightUnit} />
-          </div>
-        </div>
-
-        {/* ── Recent Workouts ────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          <h2 className="text-xs font-black uppercase tracking-widest text-white">
-            Recent Activity
-          </h2>
-          {user.recentWorkouts.length === 0 ? (
-            <p className="text-sm text-zinc-600">No workouts logged yet.</p>
-          ) : (
-            user.recentWorkouts.map(w => (
-              <WorkoutCard key={w.id} workout={w} unit={user.weightUnit} />
-            ))
-          )}
-        </div>
-
-        <div className="h-8" />
+  if (!profile) {
+    return (
+      <div className="user-profile-loading" style={{ flexDirection: 'column', gap: '16px' }}>
+        <p>User not found</p>
+        <button onClick={() => navigate('/')} style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+          Go back home
+        </button>
       </div>
+    );
+  }
+
+  return (
+    <div className="user-profile-screen">
+
+      {/* Back Button */}
+      <button className="user-profile-back" onClick={() => navigate(-1)}>
+        ← Back
+      </button>
+
+      {/* Header */}
+      <div className="user-profile-header">
+
+        {/* Avatar */}
+        <div className="user-profile-avatar">
+          {profile.username?.substring(0, 2).toUpperCase()}
+        </div>
+
+        {/* Name + Username */}
+        <h1 className="user-profile-name">
+          {profile.display_name || profile.username}
+        </h1>
+        <p className="user-profile-username">@{profile.username}</p>
+
+        {profile.lifter_type && (
+          <p className="user-profile-lifter-type">{profile.lifter_type} Lifter</p>
+        )}
+
+        {profile.bio && (
+          <p className="user-profile-bio">{profile.bio}</p>
+        )}
+
+        {/* Follow Button — only if not own profile */}
+        {currentUser?.uid !== profile.firebase_uid && (
+          <button
+            className={`follow-btn ${isFollowing ? 'following' : 'not-following'}`}
+            onClick={handleFollow}
+            disabled={followLoading}
+          >
+            {followLoading ? '...' : isFollowing ? 'Following ✓' : 'Follow'}
+          </button>
+        )}
+      </div>
+
+      {/* Stats Row */}
+      <div className="user-profile-stats">
+        <div className="user-stat-item">
+          <span className="user-stat-value">{formatFollowers(followerCount)}</span>
+          <span className="user-stat-label">Followers</span>
+        </div>
+        <div className="user-stat-divider" />
+        <div className="user-stat-item">
+          <span className="user-stat-value">{formatFollowers(profile.following_count)}</span>
+          <span className="user-stat-label">Following</span>
+        </div>
+        <div className="user-stat-divider" />
+        <div className="user-stat-item">
+          <span className="user-stat-value">{profile.score?.toLocaleString() || 0}</span>
+          <span className="user-stat-label">Score</span>
+        </div>
+        {profile.primary_gym_name && (
+          <>
+            <div className="user-stat-divider" />
+            <div className="user-stat-item">
+              <span className="user-stat-value" style={{ fontSize: '13px' }}>
+                {profile.primary_gym_name}
+              </span>
+              <span className="user-stat-label">Gym</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* PR Section */}
+      <div className="user-profile-section">
+        <h2 className="user-profile-section-title">Top Lifts</h2>
+        <div className="pr-cards-row">
+          {['Bench', 'Squat', 'Deadlift'].map(lift => (
+            <div key={lift} className="pr-card">
+              <span className="pr-card-value">{getBestPR(lift)}</span>
+              <span className="pr-card-unit">lbs</span>
+              <span className="pr-card-label">{lift}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Posts Section */}
+      <div className="user-profile-section">
+        <h2 className="user-profile-section-title">Recent Posts</h2>
+        {profile.posts.length === 0 ? (
+          <p className="user-profile-empty">No posts yet.</p>
+        ) : (
+          profile.posts.map(post => (
+            <div key={post.id} className="user-post-card">
+              <p className="user-post-caption">{post.caption}</p>
+              {post.muscle_groups && (
+                <div className="user-post-muscles">
+                  {post.muscle_groups.split(',').map((mg, i) => (
+                    <span key={i} className="user-muscle-tag">{mg.trim()}</span>
+                  ))}
+                </div>
+              )}
+              <div className="user-post-meta">
+                <span>❤️ {post.likes_count}</span>
+                <span>💬 {post.comments_count}</span>
+                <span>{getTimeAgo(post.created_at)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
     </div>
   );
 }
-

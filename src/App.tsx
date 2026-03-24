@@ -87,6 +87,11 @@ function App() {
           path="/user"
           element={user ? <UserProfileView /> : <Navigate to="/login" />}
         />
+        {/* Dynamic user profile route - navigates to /user/username */}
+        <Route
+          path="/user/:username"
+          element={user ? <UserProfileView /> : <Navigate to="/login" />}
+        />
       </Routes>
     </BrowserRouter>
   );
