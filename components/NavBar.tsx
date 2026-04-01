@@ -25,22 +25,9 @@ export default function NavBar() {
             Profile
           </NavLink>
         </li>
-        <li>
-          <NavLink to="/profile-edit" className="nav-link">
-            Edit
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/user" className="nav-link">
-            User
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/login" className="nav-link">
-            Login
-          </NavLink>
-        </li>
       </ul>
     </nav>
   );
 }
+
+
