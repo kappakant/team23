@@ -7,8 +7,6 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import GymProfile from './pages/GymProfile';
 import LogWorkout from './pages/LogWorkout';
-import ProfilePage from './pages/ProfilePage';
-import UserProfileView from './pages/UserProfileView';
 import NavBar from './components/NavBar';
 
 function App() {
@@ -20,7 +18,6 @@ function App() {
       setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -43,55 +40,30 @@ function App() {
     <BrowserRouter>
       {user && <NavBar />}
       <Routes>
+        {/* Login route */}
         <Route 
           path="/login" 
           element={user ? <Navigate to="/" /> : <Login />} 
         />
+        
+        {/* Main nav routes */}
         <Route 
           path="/" 
           element={user ? <Home /> : <Navigate to="/login" />} 
         />
         <Route 
-          path="/profile" 
-          element={user ? <Profile /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/gym-profile" 
-          element={user ? <GymProfile /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/log-workout" 
+          path="/log" 
           element={user ? <LogWorkout /> : <Navigate to="/login" />} 
         />
         <Route 
-          path="/profile-page" 
-          element={user ? <ProfilePage /> : <Navigate to="/login" />} 
+          path="/gym" 
+          element={user ? <GymProfile /> : <Navigate to="/login" />} 
         />
         <Route 
-          path="/user-profile" 
-          element={user ? <UserProfileView /> : <Navigate to="/login" />} 
+          path="/profile" 
+          element={user ? <Profile /> : <Navigate to="/login" />} 
         />
-        <Route
-          path="/log"
-          element={user ? <LogWorkout /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/gym"
-          element={user ? <GymProfile /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/profile-edit"
-          element={user ? <ProfilePage /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/user"
-          element={user ? <UserProfileView /> : <Navigate to="/login" />}
-        />
-        {/* Dynamic user profile route - navigates to /user/username */}
-        <Route
-          path="/user/:username"
-          element={user ? <UserProfileView /> : <Navigate to="/login" />}
-        />
+        
       </Routes>
     </BrowserRouter>
   );

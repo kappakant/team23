@@ -12,32 +12,17 @@ export default function NavBar() {
         </li>
         <li>
           <NavLink to="/log" className="nav-link">
-            Log
+            New Workout
           </NavLink>
         </li>
         <li>
           <NavLink to="/gym" className="nav-link">
-            Gym
+            Gyms
           </NavLink>
         </li>
         <li>
           <NavLink to="/profile" className="nav-link">
             Profile
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/profile-edit" className="nav-link">
-            Edit
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/user" className="nav-link">
-            User
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/login" className="nav-link">
-            Login
           </NavLink>
         </li>
       </ul>
