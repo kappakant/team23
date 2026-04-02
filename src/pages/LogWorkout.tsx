@@ -1,5 +1,8 @@
 import { useState, useRef } from "react";
 import "./LogWorkout.css";
+import { useWorkouts } from "../context/WorkoutContext";
+import { useNavigate } from "react-router-dom";
+import { createPost, getMuscleGroups } from "../services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -279,7 +282,9 @@ export default function LogWorkout() {
     setExercises(p => p.map(ex => ex.id === id ? { ...ex, [field]: val } : ex));
   const removeExercise = (id: string) => setExercises(p => p.filter(ex => ex.id !== id));
 
-  const handleSave = () => {
+  const { logWorkout } = useWorkouts();
+  const navigate = useNavigate();
+  const handleSave = async () => {
     const full: WorkoutLog = {
       ...workout,
       id: crypto.randomUUID(),
@@ -290,9 +295,31 @@ export default function LogWorkout() {
     const errs = validate(full);
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    console.log("[PumpPal] Workout logged:", full);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+
+    try {
+      // Build caption from title + note
+      const caption = full.note
+        ? `${full.customTitle} — ${full.note}`
+        : full.customTitle;
+
+      // Fetch muscle groups and match workoutType to an ID
+      const muscleGroups = await getMuscleGroups();
+      const matched = muscleGroups.find(
+        (m: { id: number; name: string }) =>
+          m.name.toLowerCase() === full.workoutType.toLowerCase()
+      );
+      const muscleGroupIds = matched ? [matched.id] : [];
+
+      await createPost(caption, muscleGroupIds);
+      logWorkout(full);
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        navigate("/");
+      }, 1500);
+    } catch (error) {
+      console.error("Error saving workout:", error);
+    }
   };
 
   const handleReset = () => {
