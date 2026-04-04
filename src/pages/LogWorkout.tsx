@@ -268,6 +268,8 @@ export default function LogWorkout() {
   const [errors, setErrors]       = useState<Record<string, string>>({});
   const [saved, setSaved]         = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const set = <K extends keyof WorkoutLog>(key: K, val: WorkoutLog[K]) =>
     setWorkout(p => ({ ...p, [key]: val }));
@@ -284,6 +286,7 @@ export default function LogWorkout() {
 
   const { logWorkout } = useWorkouts();
   const navigate = useNavigate();
+  
   const handleSave = async () => {
     const full: WorkoutLog = {
       ...workout,
@@ -295,6 +298,10 @@ export default function LogWorkout() {
     const errs = validate(full);
     setErrors(errs);
     if (Object.keys(errs).length) return;
+
+    // Clear any previous upload errors
+    setUploadError("");
+    setIsUploading(true);
 
     try {
       // Build caption from title + note
@@ -310,15 +317,25 @@ export default function LogWorkout() {
       );
       const muscleGroupIds = matched ? [matched.id] : [];
 
-      await createPost(caption, muscleGroupIds);
+      // Pass media count to createPost
+      await createPost(caption, muscleGroupIds, media.length);
+      
       logWorkout(full);
       setSaved(true);
+      setIsUploading(false);
+      
       setTimeout(() => {
         setSaved(false);
         navigate("/");
       }, 1500);
     } catch (error) {
       console.error("Error saving workout:", error);
+      setIsUploading(false);
+      
+      // Set user-friendly error message
+      setUploadError(
+        "Failed to upload workout. Please check your connection and try again."
+      );
     }
   };
 
@@ -330,6 +347,12 @@ export default function LogWorkout() {
     setErrors({});
     setSaved(false);
     setShowOther(false);
+    setUploadError("");
+  };
+
+  const handleRetry = () => {
+    setUploadError("");
+    handleSave();
   };
 
   return (
@@ -403,21 +426,54 @@ export default function LogWorkout() {
         </Section>
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button type="button" onClick={handleSave}
-            className="flex-1 bg-white hover:bg-zinc-200 text-black font-black rounded-xl py-3 text-sm transition-colors">
-            Log Workout
-          </button>
-          <button type="button" onClick={handleReset}
-            className="px-5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700
-                       text-zinc-300 font-black rounded-xl py-3 text-sm transition-colors">
-            Reset
-          </button>
-        </div>
+        <div className="flex flex-col gap-3">
+          {/* Upload error message with retry */}
+          {uploadError && (
+            <div className="bg-red-900/20 border border-red-500 rounded-xl p-4 flex flex-col gap-3">
+              <div className="flex items-start gap-2">
+                <span className="text-red-400 text-lg leading-none">⚠️</span>
+                <p className="text-sm text-red-400 flex-1">{uploadError}</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={handleRetry}
+                disabled={isUploading}
+                className="bg-red-500 hover:bg-red-600 text-white font-black rounded-lg py-2 px-4 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUploading ? "Retrying..." : "Retry Upload"}
+              </button>
+            </div>
+          )}
 
-        {saved && (
-          <p className="text-center text-sm text-green-400 animate-pulse">✓ Workout logged!</p>
-        )}
+          <div className="flex gap-3">
+            <button 
+              type="button" 
+              onClick={handleSave}
+              disabled={isUploading}
+              className="flex-1 bg-white hover:bg-zinc-200 text-black font-black rounded-xl py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? "Uploading..." : "Log Workout"}
+            </button>
+            <button 
+              type="button" 
+              onClick={handleReset}
+              disabled={isUploading}
+              className="px-5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-black rounded-xl py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Success message */}
+          {saved && (
+            <div className="bg-green-900/20 border border-green-500 rounded-xl p-4 flex items-center justify-center gap-2">
+              <span className="text-green-400 text-lg leading-none">✓</span>
+              <p className="text-sm text-green-400 font-black">
+                Workout {media.length > 0 ? 'with photos ' : ''}logged successfully!
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="h-8" />
       </div>
