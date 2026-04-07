@@ -2,250 +2,297 @@ import { useState, useEffect } from 'react';
 import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { getUserProfile } from '../services/api';
+import { getFullProfile } from '../services/api';
 import './Profile.css';
 
-interface UserProfile {
+interface Badge {
+  name: string;
+  category: string;
+  badge_tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+  stack_count: number;
+}
+
+interface PR {
+  pr_type: string;
+  weight_lbs: number;
+  time_seconds: number;
+  pr_date: string;
+}
+
+interface Post {
+  id: number;
+  caption: string;
+  likes_count: number;
+  comments_count: number;
+  created_at: string;
+  image_url: string;
+  muscle_groups: string;
+}
+
+interface FullProfile {
   firebase_uid: string;
   username: string;
   display_name: string;
-  email: string;
   bio: string;
-  age: number;
-  height_inches: number;
-  weight_lbs: number;
+  profile_image_url: string;
   lifter_type: string;
   score: number;
   current_streak_days: number;
   primary_gym_name: string;
   followers_count: number;
   following_count: number;
-  badges_count: number;
+  badges: Badge[];
+  prs: PR[];
+  posts: Post[];
 }
 
-function Profile() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+const tierColors: Record<string, string> = {
+  Bronze: '#cd7f32',
+  Silver: '#a8a9ad',
+  Gold: '#ffd700',
+  Platinum: '#b0c4de',
+  Diamond: '#4a90e2',
+};
+
+const tierEmoji: Record<string, string> = {
+  Bronze: '💪',
+  Silver: '🏋️',
+  Gold: '⏱️',
+  Platinum: '🛡️',
+  Diamond: '💎',
+};
+
+function getBestPR(prs: PR[], type: string): number {
+  const filtered = prs?.filter(p => p.pr_type === type) || [];
+  if (filtered.length === 0) return 0;
+  return Math.max(...filtered.map(p => p.weight_lbs || 0));
+}
+
+function getBestMile(prs: PR[]): string {
+  const filtered = prs?.filter(p => p.pr_type === 'TreadmillMile') || [];
+  if (filtered.length === 0) return '';
+  const best = Math.min(...filtered.map(p => p.time_seconds || 9999));
+  if (best === 9999) return '';
+  const mins = Math.floor(best / 60);
+  const secs = best % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function getBestStairmaster(prs: PR[]): number {
+  const filtered = prs?.filter(p => p.pr_type === 'StairmasterFlights') || [];
+  if (filtered.length === 0) return 0;
+  return Math.max(...filtered.map(p => p.weight_lbs || 0));
+}
+
+export default function Profile() {
+  const [profile, setProfile] = useState<FullProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioText, setBioText] = useState('');
   const user = auth.currentUser;
   const navigate = useNavigate();
 
-  const getCurrentTime = () => {
-    const now = new Date();
-    return now.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
+  useEffect(() => {
+    const load = async () => {
+      if (!user) return;
+      const data = await getFullProfile(user.uid);
+      if (data && !data.error) setProfile(data);
+      setLoading(false);
+    };
+    load();
+  }, [user]);
+
+  const handleSaveBio = async () => {
+    if (!user) return;
+    await fetch(`http://localhost:3000/api/users/bio`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firebase_uid: user.uid, bio: bioText })
     });
-  };
-
-  const getInitials = (username: string) => {
-    return username ? username.substring(0, 2).toUpperCase() : 'U';
-  };
-
-  const formatHeight = (inches: number) => {
-    if (!inches) return '—';
-    const ft = Math.floor(inches / 12);
-    const inc = inches % 12;
-    return `${ft}'${inc}"`;
+    setProfile(prev => prev ? { ...prev, bio: bioText } : prev);
+    setEditingBio(false);
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    await signOut(auth);
+    navigate('/login');
   };
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-      try {
-        const data = await getUserProfile(user.uid);
-        setProfile(data);
-      } catch (error) {
-        console.error('Error loading profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadProfile();
-  }, [user]);
+  const lifts = profile ? [
+    { label: 'Bench', value: getBestPR(profile.prs, 'Bench'), unit: 'lbs' },
+    { label: 'Squat', value: getBestPR(profile.prs, 'Squat'), unit: 'lbs' },
+    { label: 'Deadlift', value: getBestPR(profile.prs, 'Deadlift'), unit: 'lbs' },
+    ...(getBestMile(profile.prs) ? [{ label: 'Mile', value: getBestMile(profile.prs), unit: 'min' }] : []),
+    ...(getBestStairmaster(profile.prs) ? [{ label: 'Stairmaster', value: getBestStairmaster(profile.prs), unit: 'flights' }] : []),
+  ].filter(l => l.value && l.value !== 0 && l.value !== '') : [];
 
-  if (loading) {
-    return (
-      <div className="profile-screen">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
-          Loading Profile...
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="profile-screen">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>
-          Profile not found
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="pp-loading">Loading...</div>;
+  if (!profile) return <div className="pp-loading">Profile not found</div>;
 
   return (
-    <div className="profile-screen">
-      {/* Status Bar */}
-      <div className="profile-status-bar">
-        <span className="profile-status-time">{getCurrentTime()}</span>
-        <div className="profile-status-icons">
-          <svg width="16" height="12" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M1 6.5C5.5 2 10.5 0 12 0s6.5 2 11 6.5"/>
-            <path d="M5 10.5c2-2 4.5-3 7-3s5 1 7 3"/>
-            <circle cx="12" cy="16" r="2" fill="currentColor" stroke="none"/>
-          </svg>
-          <svg width="18" height="12" viewBox="0 0 24 12" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="1" y="1" width="20" height="10" rx="2"/>
-            <rect x="21" y="4" width="2" height="4" rx="1"/>
-          </svg>
-        </div>
+    <div className="pp-page">
+
+      {/* ── App Title ───────────────────────────────────────────────────── */}
+      <div className="pp-top-bar">
+        <h1 className="pp-app-title">PUMPPAL</h1>
+        <button className="pp-edit-btn pp-edit-top" onClick={() => navigate('/profile-edit')}>
+          Edit Profile
+        </button>
       </div>
 
-      {/* Scrollable Content */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: '20px' }}>
-        {/* Header */}
-        <div className="profile-header-section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px' }}>
-            <h1 className="profile-app-title">PUMP PAL</h1>
-            <button
-              onClick={handleLogout}
-              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px' }}
-            >
-              Logout
-            </button>
-          </div>
+      {/* ── Profile Header ──────────────────────────────────────────────── */}
+      <div className="pp-header">
+        <div className="pp-avatar">
+          {profile.profile_image_url
+            ? <img src={profile.profile_image_url} alt="avatar" />
+            : <span>{profile.username?.substring(0, 2).toUpperCase()}</span>
+          }
+        </div>
 
-          {/* Profile Info Card */}
-          <div className="profile-info-card">
-            <div className="profile-top">
-              <div className="profile-avatar-large">
-                <div className="profile-avatar-placeholder">
-                  {getInitials(profile.username)}
-                </div>
-              </div>
-
-              <div className="profile-basic-info">
-                <h2 className="profile-name">{profile.display_name || profile.username}</h2>
-                <div className="profile-username-tag">@{profile.username}</div>
-                <div className="profile-stats-inline">
-                  {profile.age && <span>{profile.age}</span>}
-                  {profile.age && profile.height_inches && <span>•</span>}
-                  {profile.height_inches && <span>{formatHeight(profile.height_inches)}</span>}
-                  {profile.height_inches && profile.weight_lbs && <span>•</span>}
-                  {profile.weight_lbs && <span>{profile.weight_lbs} lbs</span>}
-                </div>
-                {profile.primary_gym_name && (
-                  <div className="profile-home-gym">{profile.primary_gym_name}</div>
-                )}
-                {profile.lifter_type && (
-                  <div className="profile-lifter-type">
-                    Type of Lifter: <span>{profile.lifter_type}</span>
-                  </div>
-                )}
-                {profile.bio && (
-                  <div className="profile-bio">{profile.bio}</div>
-                )}
-              </div>
+        <div className="pp-info">
+          <div className="pp-name-row">
+            <div>
+              <h2 className="pp-display-name">{profile.display_name || profile.username}</h2>
+              <p className="pp-username">@{profile.username}</p>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="stats-card-profile">
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Score</div>
-              <div className="stat-value-profile">{profile.score?.toLocaleString() || 0}</div>
-            </div>
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Followers</div>
-              <div className="stat-value-profile">{profile.followers_count || 0}</div>
-            </div>
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Following</div>
-              <div className="stat-value-profile">{profile.following_count || 0}</div>
-            </div>
-            <div className="stat-item-profile">
-              <div className="stat-label-profile">Streak</div>
-              <div className="stat-value-profile">{profile.current_streak_days || 0}🔥</div>
-            </div>
+          <div className="pp-stats-row">
+            <span>Following <strong>{profile.following_count || 0}</strong></span>
+            <div className="pp-stats-divider" />
+            <span>Followers <strong>{profile.followers_count || 0}</strong></span>
           </div>
 
-          {/* Badges */}
-          <div className="badges-section">
-            <div className="badge-card">
-              <svg className="badge-icon bronze" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-              </svg>
-              <div className="badge-info">
-                <div className="badge-name">Bronze Lifter PR</div>
+          {editingBio ? (
+            <div className="pp-bio-edit">
+              <textarea
+                className="pp-bio-input"
+                value={bioText}
+                onChange={e => setBioText(e.target.value)}
+                placeholder="Write a bio..."
+                maxLength={150}
+                rows={3}
+                autoFocus
+              />
+              <div className="pp-bio-edit-actions">
+                <button className="pp-bio-save-btn" onClick={handleSaveBio}>Save</button>
+                <button className="pp-bio-cancel-btn" onClick={() => setEditingBio(false)}>Cancel</button>
               </div>
             </div>
-            <div className="badge-card">
-              <svg className="badge-icon diamond" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-              </svg>
-              <div className="badge-info">
-                <div className="badge-name">Diamond Lifter</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Gym Section */}
-          {profile.primary_gym_name && (
-            <div className="gym-section">
-              <div className="gym-header">
-                <h3 className="gym-name">{profile.primary_gym_name.toUpperCase()}</h3>
-              </div>
+          ) : (
+            <div className="pp-bio-row">
+              {profile.bio
+                ? <p className="pp-bio">{profile.bio}</p>
+                : <span className="pp-bio-placeholder">No bio yet</span>
+              }
+              <button
+                className="pp-bio-edit-btn"
+                onClick={() => { setBioText(profile.bio || ''); setEditingBio(true); }}
+                title="Edit bio"
+              >
+                ✏️
+              </button>
             </div>
           )}
+          {profile.lifter_type && <p className="pp-lifter-type">{profile.lifter_type} Lifter</p>}
+          {profile.primary_gym_name && <p className="pp-gym">📍 {profile.primary_gym_name}</p>}
         </div>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="bottom-nav">
-        <div className="nav-item" onClick={() => navigate('/')}>
-          <div className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
+      {/* ── Badges Earned ───────────────────────────────────────────────── */}
+      {profile.badges?.length > 0 && (
+        <div className="pp-section">
+          <h3 className="pp-section-title">
+            <span className="pp-section-title-inner">Badges Earned</span>
+          </h3>
+          <div className="pp-badges-row">
+            {profile.badges.map((badge, i) => (
+              <div key={i} className="pp-badge-item" title={badge.name}>
+                <div className="pp-badge-shield" style={{ borderColor: tierColors[badge.badge_tier] }}>
+                  <span className="pp-badge-emoji">{tierEmoji[badge.badge_tier]}</span>
+                  {badge.stack_count > 1 && (
+                    <span className="pp-badge-stack">x{badge.stack_count}</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="nav-item" onClick={() => navigate('/log-workout')}>
-          <div className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
+      )}
+
+      {/* ── Top Lifts ───────────────────────────────────────────────────── */}
+      <div className="pp-section">
+        <h3 className="pp-section-title">
+          <span className="pp-section-title-inner">
+            Top Lifts
+            <button className="pp-add-lift-btn" onClick={() => navigate('/log-workout')} title="Add lift">+</button>
+          </span>
+        </h3>
+        {lifts.length > 0 ? (
+          <div className="pp-lifts-grid">
+            {lifts.map((lift, i) => (
+              <div key={i} className="pp-lift-col">
+                <span className="pp-lift-label">{lift.label}</span>
+                <div className="pp-lift-card">
+                  <span className="pp-lift-value">{lift.value} {lift.unit}</span>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-        <div className="nav-item" onClick={() => navigate('/gym-profile')}>
-          <div className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
-            </svg>
+        ) : (
+          <div className="pp-lifts-empty">
+            <p>No lifts recorded yet</p>
           </div>
-        </div>
-        <div className="nav-item active">
-          <div className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+        )}
+      </div>
+
+      {/* ── Pump Score ──────────────────────────────────────────────────── */}
+      <div className="pp-section">
+        <h3 className="pp-section-title">
+          <span className="pp-section-title-inner">Pump Score</span>
+        </h3>
+        <div className="pp-pumpscore">
+          <div className="pp-pumpscore-row">
+            <span className="pp-pumpscore-fire">🔥</span>
+            <span className="pp-pumpscore-value">{profile.score?.toLocaleString() || 0}</span>
           </div>
         </div>
       </div>
+
+      {/* ── Recent Posts ────────────────────────────────────────────────── */}
+      <div className="pp-section">
+        <h3 className="pp-section-title">
+          <span className="pp-section-title-inner">Recent Posts</span>
+        </h3>
+        {profile.posts?.length === 0 ? (
+          <div className="pp-empty">
+            <p>No posts yet</p>
+          </div>
+        ) : (
+          <div className="pp-posts-grid">
+            {profile.posts?.map(post => (
+              <div key={post.id} className="pp-post-card">
+                {post.image_url
+                  ? <img src={post.image_url} alt="post" className="pp-post-img" />
+                  : (
+                    <div className="pp-post-img-placeholder">
+                      <span>{post.muscle_groups?.split(',')[0]?.trim() || '💪'}</span>
+                    </div>
+                  )
+                }
+                <div className="pp-post-body">
+                  <p className="pp-post-caption">{post.caption}</p>
+                  <div className="pp-post-meta">
+                    <span>🤍 {post.likes_count} Likes</span>
+                    <span>💬 {post.comments_count} Comments</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
-
-export default Profile;

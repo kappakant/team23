@@ -8,6 +8,58 @@ const getCurrentUserId = () => {
   return auth.currentUser?.uid || null;
 };
 
+// ============================================
+// USER ENDPOINTS
+// ============================================
+
+// Create or sync user profile
+export const syncUserProfile = async () => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  
+  try {
+    const response = await fetch(`${API_URL}/users/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firebase_uid: user.uid,
+        email: user.email,
+        username: user.email?.split('@')[0],
+        display_name: user.displayName || user.email?.split('@')[0]
+      })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error syncing user:', error);
+    return null;
+  }
+};
+
+// Get user profile by firebase_uid
+export const getUserProfile = async (firebaseUid?: string) => {
+  const userId = firebaseUid || getCurrentUserId();
+  if (!userId) return null;
+  
+  try {
+    const response = await fetch(`${API_URL}/users/profile/${userId}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    return null;
+  }
+};
+
+// Get full own profile (with badges, PRs, posts)
+export const getFullProfile = async (firebase_uid: string) => {
+  try {
+    const response = await fetch(`${API_URL}/users/me/${firebase_uid}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching full profile:', error);
+    return null;
+  }
+};
+
 // Get any user's public profile by username
 export const getUserByUsername = async (username: string, viewer_id?: string) => {
   try {
@@ -37,28 +89,9 @@ export const toggleFollow = async (follower_id: string, following_id: string) =>
   }
 };
 
-// Create or sync user profile
-export const syncUserProfile = async () => {
-  const user = auth.currentUser;
-  if (!user) return null;
-  
-  try {
-    const response = await fetch(`${API_URL}/users/profile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        firebase_uid: user.uid,
-        email: user.email,
-        username: user.email?.split('@')[0],
-        display_name: user.displayName || user.email?.split('@')[0]
-      })
-    });
-    return await response.json();
-  } catch (error) {
-    console.error('Error syncing user:', error);
-    return null;
-  }
-};
+// ============================================
+// POST ENDPOINTS
+// ============================================
 
 // Get user's feed
 export const getFeed = async () => {
@@ -123,19 +156,5 @@ export const getMuscleGroups = async () => {
   } catch (error) {
     console.error('Error fetching muscle groups:', error);
     return [];
-  }
-};
-
-// Get user profile
-export const getUserProfile = async (firebaseUid?: string) => {
-  const userId = firebaseUid || getCurrentUserId();
-  if (!userId) return null;
-  
-  try {
-    const response = await fetch(`${API_URL}/users/profile/${userId}`);
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-    return null;
   }
 };
