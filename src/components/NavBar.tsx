@@ -11,18 +11,23 @@ export default function NavBar() {
           </NavLink>
         </li>
         <li>
-          <NavLink to="/log" className="nav-link">
-            New Workout
-          </NavLink>
-        </li>
-        <li>
           <NavLink to="/gym" className="nav-link">
             Gyms
           </NavLink>
         </li>
         <li>
+          <NavLink to="/log" className="nav-link">
+            New Workout
+          </NavLink>
+        </li>
+        <li>
           <NavLink to="/profile" className="nav-link">
             Profile
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/UserProfileView" className="nav-link">
+            Statistics
           </NavLink>
         </li>
       </ul>

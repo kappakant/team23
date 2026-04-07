@@ -8,7 +8,7 @@ import Profile from './pages/Profile';
 import GymProfile from './pages/GymProfile';
 import LogWorkout from './pages/LogWorkout';
 import NavBar from './components/NavBar';
-
+import { WorkoutProvider } from './context/WorkoutContext';
 function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -37,35 +37,37 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      {user && <NavBar />}
-      <Routes>
-        {/* Login route */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/" /> : <Login />} 
-        />
-        
-        {/* Main nav routes */}
-        <Route 
-          path="/" 
-          element={user ? <Home /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/log" 
-          element={user ? <LogWorkout /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/gym" 
-          element={user ? <GymProfile /> : <Navigate to="/login" />} 
-        />
-        <Route 
-          path="/profile" 
-          element={user ? <Profile /> : <Navigate to="/login" />} 
-        />
-        
-      </Routes>
-    </BrowserRouter>
+    <WorkoutProvider>
+      <BrowserRouter>
+        {user && <NavBar />}
+        <Routes>
+          {/* Login route */}
+          <Route 
+            path="/login" 
+            element={user ? <Navigate to="/" /> : <Login />} 
+          />
+          
+          {/* Main nav routes */}
+          <Route 
+            path="/" 
+            element={user ? <Home /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/log" 
+            element={user ? <LogWorkout /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/gym" 
+            element={user ? <GymProfile /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/profile" 
+            element={user ? <Profile /> : <Navigate to="/login" />} 
+          />
+          
+        </Routes>
+      </BrowserRouter>
+    </WorkoutProvider>
   );
 }
 

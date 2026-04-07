@@ -108,22 +108,62 @@ export const getFeed = async () => {
 };
 
 // Create a new post
-export const createPost = async (caption: string, muscleGroupIds: number[], liftRating?: number) => {
+export const createPost = async (
+  caption: string, 
+  muscleGroupIds: number[], 
+  liftRating?: number,
+  mediaFiles?: File[]
+) => {
   const userId = getCurrentUserId();
   if (!userId) throw new Error('Not authenticated');
   
   try {
-    const response = await fetch(`${API_URL}/posts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId,
-        caption,
-        muscle_group_ids: muscleGroupIds,
-        lift_rating: liftRating
-      })
-    });
-    return await response.json();
+    // If there are media files, use FormData; otherwise use JSON
+    if (mediaFiles && mediaFiles.length > 0) {
+      const formData = new FormData();
+      
+      formData.append("user_id", userId.toString());
+      formData.append("caption", caption);
+      formData.append("muscle_group_ids", JSON.stringify(muscleGroupIds));
+      if (liftRating !== undefined) {
+        formData.append("lift_rating", liftRating.toString());
+      }
+      
+      // Append each media file
+      mediaFiles.forEach((file, index) => {
+        formData.append(`media_${index}`, file);
+      });
+
+      const response = await fetch(`${API_URL}/posts`, {
+        method: 'POST',
+        // Don't set Content-Type for FormData - browser sets it with boundary
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create post: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } else {
+      // No media files - use original JSON approach
+      const response = await fetch(`${API_URL}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          caption,
+          muscle_group_ids: muscleGroupIds,
+          lift_rating: liftRating
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to create post: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
   } catch (error) {
     console.error('Error creating post:', error);
     throw error;
