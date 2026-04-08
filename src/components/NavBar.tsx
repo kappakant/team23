@@ -26,7 +26,7 @@ export default function NavBar() {
           </NavLink>
         </li>
         <li>
-          <NavLink to="/UserProfileView" className="nav-link">
+          <NavLink to="/stats" className="nav-link">  {/* ← changed from /UserProfileView */}
             Statistics
           </NavLink>
         </li>

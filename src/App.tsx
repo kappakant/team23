@@ -7,8 +7,10 @@ import Home from './pages/Home';
 import Profile from './pages/Profile';
 import GymProfile from './pages/GymProfile';
 import LogWorkout from './pages/LogWorkout';
+import Stats from './pages/StatsPage';         // ← ADD THIS
 import NavBar from './components/NavBar';
 import { WorkoutProvider } from './context/WorkoutContext';
+
 function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -41,13 +43,10 @@ function App() {
       <BrowserRouter>
         {user && <NavBar />}
         <Routes>
-          {/* Login route */}
           <Route 
             path="/login" 
             element={user ? <Navigate to="/" /> : <Login />} 
           />
-          
-          {/* Main nav routes */}
           <Route 
             path="/" 
             element={user ? <Home /> : <Navigate to="/login" />} 
@@ -64,7 +63,10 @@ function App() {
             path="/profile" 
             element={user ? <Profile /> : <Navigate to="/login" />} 
           />
-          
+          <Route
+            path="/stats"
+            element={user ? <Stats /> : <Navigate to="/login" />}
+          />
         </Routes>
       </BrowserRouter>
     </WorkoutProvider>
